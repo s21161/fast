@@ -1,8 +1,6 @@
 package com.example.test02;
-import org.json.*;
 
 import android.os.Bundle;
-import org.json.*;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -10,15 +8,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import android.util.Log;
-import android.view.View;
-import android.widget.TextView;
-import org.json.JSONObject;
-import org.json.JSONException;
-import java.util.Iterator;
+
 import androidx.appcompat.app.AppCompatActivity;
 
-import org.json.JSONException;
-import org.json.JSONObject;
 import java.net.URI;
 import java.net.URISyntaxException;
 import tech.gusavila92.websocketclient.WebSocketClient;
@@ -27,85 +19,29 @@ import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.utils.ColorTemplate;
-
-import org.java_websocket.handshake.ServerHandshake;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
-import com.github.mikephil.charting.components.XAxis;
-import com.github.mikephil.charting.components.YAxis;
 import android.graphics.Color;
+import com.github.mikephil.charting.components.YAxis;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
+import com.github.mikephil.charting.components.Legend;
+import org.joda.time.DateTime;
+
+import java.text.SimpleDateFormat;
 
 
 public class ChartActivity extends AppCompatActivity {
     private WebSocketClient webSocketClient;
-    private LineChart lineChart1;
-    private LineChart lineChart2;
-    private LineDataSet lineDataSet1;
-    private LineDataSet lineDataSet2;
-    private LineData lineData1;
-    private LineData lineData2;
-    private SimpleDateFormat dateFormat;
+    private LineChart lineChart;
+    private LineDataSet lineDataSet;
+    private LineData lineData;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chart);
-
-        lineChart1 = findViewById(R.id.lineChart1);
-        lineChart2 = findViewById(R.id.lineChart2);
-
-        setupLineChart(lineChart1);
-        setupLineChart(lineChart2);
-
-        dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.getDefault());
+        lineChart = findViewById(R.id.lineChart);
 
         createWebSocketClient();
-    }
-
-    private void setupLineChart(LineChart lineChart) {
-        lineChart.setTouchEnabled(true);
-        lineChart.setDragEnabled(true);
-        lineChart.setScaleEnabled(false);
-        lineChart.setPinchZoom(false);
-        lineChart.setDrawGridBackground(false);
-        lineChart.getDescription().setEnabled(false);
-        lineChart.getLegend().setEnabled(false);
-
-        // Utwórz puste listy danych dla wykresu
-        List<Entry> entries1 = new ArrayList<>();
-        List<Entry> entries2 = new ArrayList<>();
-
-        // Utwórz zestaw danych dla wykresu 1
-        lineDataSet1 = new LineDataSet(entries1, "Device 1");
-        lineDataSet1.setColor(Color.BLUE);
-        lineDataSet1.setLineWidth(2f);
-        lineDataSet1.setDrawCircles(false);
-        lineDataSet1.setDrawValues(false);
-
-        // Utwórz zestaw danych dla wykresu 2
-        lineDataSet2 = new LineDataSet(entries2, "Device 2");
-        lineDataSet2.setColor(Color.RED);
-        lineDataSet2.setLineWidth(2f);
-        lineDataSet2.setDrawCircles(false);
-        lineDataSet2.setDrawValues(false);
-
-        // Utwórz obiekt LineData i dodaj zestawy danych do niego
-        lineData1 = new LineData(lineDataSet1);
-        lineData2 = new LineData(lineDataSet2);
-
-        // Przypisz LineData do wykresów
-        lineChart1.setData(lineData1);
-        lineChart2.setData(lineData2);
     }
 
     private void createWebSocketClient() {
@@ -120,13 +56,14 @@ public class ChartActivity extends AppCompatActivity {
         webSocketClient = new WebSocketClient(uri) {
             @Override
             public void onOpen() {
-                Log.i("WebSocket", "Session is starting");
+                Log.i("WebSocket", "Rozpoczęto sesję");
                 webSocketClient.send("Hello World!");
             }
+
+            // Metoda pomocnicza do konwersji ciągu JSON na standardowy format
             public String convertStandardJSONString(String data_json) {
                 data_json = data_json.replaceAll("\\\\r\\\\n", "");
                 data_json = data_json.replace("\\\"", "\"");
-
                 data_json = data_json.replace("\"{", "{");
                 data_json = data_json.replace("}\",", "},");
                 data_json = data_json.replace("}\"", "}");
@@ -135,83 +72,175 @@ public class ChartActivity extends AppCompatActivity {
 
             @Override
             public void onTextReceived(String s) {
-                Log.i("WebSocket", "Message received");
+                Log.i("WebSocket", "Odebrano wiadomość");
                 List<Device> devices = new ArrayList<>();
                 try {
+                    // Parsowanie otrzymanego ciągu JSON
                     JSONObject json = new JSONObject(convertStandardJSONString(s));
                     Iterator<String> keys = json.keys();
                     while (keys.hasNext()) {
                         String id = keys.next();
                         JSONObject deviceObject = json.getJSONObject(id);
+
+                        // Tworzenie obiektu urządzenia
                         Device device = new Device(id);
+
+                        // Iteracja po czujnikach w danym urządzeniu
                         Iterator<String> sensorKeys = deviceObject.keys();
                         while (sensorKeys.hasNext()) {
                             String sensorId = sensorKeys.next();
                             JSONObject sensorObject = deviceObject.getJSONObject(sensorId);
+
+                            // Tworzenie obiektu czujnika i dodawanie go do listy czujników urządzenia
                             Sensor sensor = new Sensor(sensorId, sensorObject.getString("timestamp"), sensorObject.getDouble("value"));
                             device.getSensors().add(sensor);
                         }
+
+                        // Dodawanie urządzenia do listy urządzeń
                         devices.add(device);
                     }
 
-                    List<Entry> entries1 = new ArrayList<>();
-                    List<Entry> entries2 = new ArrayList<>();
-
+                    // Przetwarzanie danych czujników
                     for (Device device : devices) {
+                        System.out.println("ID urządzenia: " + device.getId());
                         List<Sensor> sensors = device.getSensors();
                         for (Sensor sensor : sensors) {
-                            double value = sensor.getValue();
-                            Date timestamp = dateFormat.parse(sensor.getTimestamp());
-                            long timestampInSeconds = timestamp.getTime() / 1000;
-
-                            if (device.getId().equals("1")) {
-                                lineDataSet1.addEntry(new Entry(timestampInSeconds, (float) value));
-                            } else if (device.getId().equals("2")) {
-                                lineDataSet2.addEntry(new Entry(timestampInSeconds, (float) value));
+                            System.out.println("ID czujnika: " + sensor.getId());
+                            System.out.println("Timestamp: " + sensor.getTimestamp());
+                            System.out.println("Wartość: " + sensor.getValue());
+                            if (device.getId().equals("1") && sensor.getId().equals("8")) {
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        addEntryToChart(sensor.getValue());
+                                    }
+                                });
                             }
                         }
                     }
 
-                    lineDataSet1 = new LineDataSet(entries1, "Device 1");
-                    lineDataSet1.setColor(Color.BLUE);
-                    lineDataSet1.setLineWidth(2f);
-                    lineDataSet1.setDrawCircles(false);
-                    lineDataSet1.setDrawValues(false);
-
-                    lineDataSet2 = new LineDataSet(entries2, "Device 2");
-                    lineDataSet2.setColor(Color.RED);
-                    lineDataSet2.setLineWidth(2f);
-                    lineDataSet2.setDrawCircles(false);
-                    lineDataSet2.setDrawValues(false);
-
-                    lineData1 = new LineData(lineDataSet1);
-                    lineData2 = new LineData(lineDataSet2);
-
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            lineChart1.setData(lineData1);
-                            lineChart1.notifyDataSetChanged();
-                            lineChart1.invalidate();
-
-                            lineChart2.setData(lineData2);
-                            lineChart2.notifyDataSetChanged();
-                            lineChart2.invalidate();
-                        }
-                    });
-
                 } catch (JSONException e) {
-                    Log.e("WebSocket", "Error parsing JSON", e);
-                } catch (ParseException e) {
-                    Log.e("WebSocket", "Error parsing timestamp", e);
+                    Log.e("WebSocket", "Błąd podczas parsowania JSON", e);
                 }
             }
 
+            // Metoda do dodawania wpisu do wykresu
+            private void addEntryToChart(double value) {
+                if (lineDataSet == null) {
+                    lineDataSet = new LineDataSet(null, "Czujnik 8");
+                    lineDataSet.setValueTextSize(20f);
+                    lineDataSet.setAxisDependency(YAxis.AxisDependency.LEFT);
+                    lineDataSet.setColor(Color.parseColor("#2196F3"));  // Ustawienie koloru linii
+                    lineDataSet.setCircleColor(Color.parseColor("#2196F3"));  // Ustawienie koloru punktów
+                    lineDataSet.setLineWidth(3f);
+                    lineDataSet.setCircleRadius(4f);
+                    lineDataSet.setDrawFilled(true);  // Włączenie wypełnienia obszaru pod linią
+                    lineDataSet.setFillAlpha(65);
+                    lineDataSet.setFillColor(Color.parseColor("#2196F3"));  // Ustawienie koloru wypełnienia
+                    lineDataSet.setHighLightColor(Color.rgb(244, 117, 117));
+                    lineDataSet.setValueTextColor(Color.BLUE);
+                    lineDataSet.setValueTextSize(20f);
+
+
+                    YAxis leftAxis = lineChart.getAxisLeft();
+                    leftAxis.setTextSize(15f);  // Zmiana rozmiaru czcionki dla etykiet osi Y
+
+                    YAxis rightAxis = lineChart.getAxisRight();
+                    rightAxis.setEnabled(false);  // Wyłączenie prawej osi
+
+                    XAxis xAxis = lineChart.getXAxis();
+                    xAxis.setTextSize(15f);  // Zmiana rozmiaru czcionki dla etykiet osi X
+
+                    lineData = new LineData(lineDataSet);
+                    lineChart.setData(lineData);
+
+                    lineChart.setDrawGridBackground(true);  // Włączenie tła siatki
+                    lineChart.setGridBackgroundColor(Color.LTGRAY);  // Ustawienie koloru tła siatki
+                    lineChart.getAxisLeft().setGridColor(Color.WHITE);  // Ustawienie koloru linii siatki dla osi Y
+                    lineChart.getXAxis().setGridColor(Color.WHITE);  // Ustawienie koloru linii siatki dla osi X
+
+                    lineChart.setBorderColor(Color.LTGRAY);  // Ustawienie koloru ramki
+
+                    Legend legend = lineChart.getLegend();
+                    legend.setEnabled(true);
+                    legend.setTextColor(Color.WHITE);
+                    legend.setTextSize(15f);
+
+                    lineChart.getDescription().setEnabled(false);  // Wyłączenie opisu wykresu
+                    lineChart.setDrawBorders(true);
+                    lineChart.setBorderColor(Color.BLACK);
+                    lineChart.setBorderWidth(5f);
+
+
+                    lineChart.setBackgroundColor(Color.DKGRAY);
+
+                    lineChart.getXAxis().setTextColor(Color.WHITE);
+                    lineChart.getAxisLeft().setTextColor(Color.WHITE);
+                    lineChart.getAxisRight().setTextColor(Color.WHITE);
+
+
+                    lineChart.getXAxis().setAxisLineWidth(2f);
+                    lineChart.getAxisLeft().setAxisLineWidth(2f);
+                    lineChart.getAxisRight().setAxisLineWidth(2f);
+
+                    lineChart.getXAxis().setGridLineWidth(2f);
+                    lineChart.getAxisLeft().setGridLineWidth(2f);
+                    lineChart.getAxisRight().setGridLineWidth(2f);
+
+
+
+                    String formattedDate = "";
+                    try {
+                        // Parsowanie timestampa na format daty
+                        DateTime dateTime = DateTime.parse(sensor.getTimestamp());
+                        formattedDate = dateTime.toString("yyyy-MM-dd HH:mm:ss");
+                    } catch (IllegalArgumentException e) {
+                        e.printStackTrace();
+                    }
+                    // Utwórz listę etykiet dla osi X
+                    List<String> xLabels = new ArrayList<>();
+                    xLabels.add(formattedDate);
+
+/// Przechowuj tylko ostatnie 10 dat
+                    int maxLabels = 10;
+                    if (lineDataSet.getEntryCount() < maxLabels) {
+                        // Jeśli mniej niż 10 wpisów, dodaj wszystkie daty do listy
+                        for (int i = 0; i < lineDataSet.getEntryCount(); i++) {
+                            Entry entry = lineDataSet.getEntryForIndex(i);
+                            xLabels.add(entry.getData().toString());
+                        }
+                    } else {
+                        // Jeśli więcej niż 10 wpisów, dodaj tylko ostatnie 10 dat do listy
+                        int startIndex = lineDataSet.getEntryCount() - maxLabels;
+                        for (int i = startIndex; i < lineDataSet.getEntryCount(); i++) {
+                            Entry entry = lineDataSet.getEntryForIndex(i);
+                            xLabels.add(entry.getData().toString());
+                        }
+                    }
+
+// Ustawienie etykiet osi X
+
+                    xAxis.setValueFormatter(new IndexAxisValueFormatter(xLabels));
+
+// Ustawienie etykiet osi X
+
+                    xAxis.setValueFormatter(new IndexAxisValueFormatter(xLabels));
+                    xAxis.setValueFormatter(new IndexAxisValueFormatter(xLabels));
+                }
+
+                lineData.addEntry(new Entry(lineDataSet.getEntryCount(), (float) value), 0);
+                lineData.notifyDataChanged();
+                lineChart.notifyDataSetChanged();
+                lineChart.setVisibleXRangeMaximum(10);
+                lineChart.moveViewToX(lineData.getEntryCount());
+            }
+
+
 
             class Sensor {
-                private String id;
-                private String timestamp;
-                private double value;
+                private final String id;
+                private final String timestamp;
+                private final double value;
 
                 public Sensor(String id, String timestamp, double value) {
                     this.id = id;
@@ -233,8 +262,8 @@ public class ChartActivity extends AppCompatActivity {
             }
 
             class Device {
-                private String id;
-                private List<Sensor> sensors;
+                private final String id;
+                private final List<Sensor> sensors;
 
                 public Device(String id) {
                     this.id = id;
@@ -251,22 +280,28 @@ public class ChartActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onBinaryReceived(byte[] data) {}
+            public void onBinaryReceived(byte[] data) {
+                Log.i("WebSocket", "Odebrano dane binarne");
+            }
 
             @Override
-            public void onPingReceived(byte[] data) {}
+            public void onPingReceived(byte[] data) {
+                Log.i("WebSocket", "Odebrano ping");
+            }
 
             @Override
-            public void onPongReceived(byte[] data) {}
+            public void onPongReceived(byte[] data) {
+                Log.i("WebSocket", "Odebrano pong");
+            }
 
             @Override
             public void onException(Exception e) {
-                e.printStackTrace();
+                Log.e("WebSocket", "Wystąpił wyjątek: " + e.getMessage());
             }
 
             @Override
             public void onCloseReceived() {
-                Log.i("WebSocket", "Closed ");
+                Log.i("WebSocket", "Zakończono sesję");
             }
         };
 
@@ -275,4 +310,7 @@ public class ChartActivity extends AppCompatActivity {
         webSocketClient.enableAutomaticReconnection(5000);
         webSocketClient.connect();
     }
+
+
+
 }
